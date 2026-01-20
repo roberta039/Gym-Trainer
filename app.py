@@ -282,7 +282,7 @@ for msg in st.session_state.messages:
         else:
             st.markdown(msg["content"])
 
-if user_input := st.chat_input("Ex: Program pentru spate, 4 zile pe săptămână..."):
+if user_input := st.chat_input("Salut! Vreau un program pentru spate și biceps..."):
     st.chat_message("user", avatar="👤").write(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
     save_message_to_db(st.session_state.session_id, "user", user_input)
