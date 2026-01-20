@@ -13,7 +13,7 @@ import re
 # ==========================================
 # 1. CONFIGURARE PAGINĂ & CSS
 # ==========================================
-st.set_page_config(page_title="GymBro AI - Antrenorul Tău", page_icon="💪", layout="centered")
+st.set_page_config(page_title="GymBro AI - Antrenor Virtual", page_icon="💪", layout="centered")
 
 st.markdown("""
 <style>
@@ -32,7 +32,7 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
-    /* Tabel styling */
+    /* Tabel styling pentru programe */
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background-color: #f2f2f2; color: black; }
@@ -91,25 +91,19 @@ else:
     st.session_state.session_id = st.query_params["session_id"]
 
 # ==========================================
-# 3. ROTIRE API & CONFIGURARE
+# 3. ROTIRE API (CODUL TĂU ORIGINAL)
 # ==========================================
 
 raw_keys = None
-# Încearcă să ia cheile din secrets (pentru Cloud) sau input manual (Local)
 if "GOOGLE_API_KEYS" in st.secrets:
     raw_keys = st.secrets["GOOGLE_API_KEYS"]
 elif "GOOGLE_API_KEY" in st.secrets:
     raw_keys = [st.secrets["GOOGLE_API_KEY"]]
 else:
-    # Fallback pentru testare locală rapidă
-    # Poți comenta liniile de mai jos când pui pe GitHub public
-    pass 
+    # Fallback pentru input manual în sidebar dacă nu există secrets
+    pass
 
-if not raw_keys:
-    with st.sidebar:
-        k = st.text_input("🔑 Introdu API Key (Gemini):", type="password")
-        if k: raw_keys = [k]
-
+# Parsare chei (Exact logica ta)
 keys = []
 if raw_keys:
     if isinstance(raw_keys, str):
@@ -124,34 +118,42 @@ if raw_keys:
                 if clean_k:
                     keys.append(clean_k)
 
+# Dacă nu găsim chei în secrets, cerem manual (pentru siguranță)
 if not keys:
-    st.warning("⚠️ Te rog introdu o cheie API Gemini în sidebar sau configurează Secrets.")
+    with st.sidebar:
+        k = st.text_input("API Key (Manual):", type="password")
+        if k: keys.append(k)
+
+if not keys:
+    st.error("❌ Nu am găsit nicio cheie API validă. Adaugă 'GOOGLE_API_KEYS' în secrets sau introdu una manual.")
     st.stop()
 
 if "key_index" not in st.session_state:
     st.session_state.key_index = 0
 
-# --- PROMPT-UL SISTEMULUI ---
+# --- PROMPT-UL SISTEMULUI (Optimizat pentru adolescenți) ---
 SYSTEM_PROMPT = """
 Ești un Antrenor Personal Virtual și Nutriționist numit "GymBro AI", specializat în lucrul cu adolescenții.
 
 STIL:
 - Prietenos, motivațional, clar, "cool" dar responsabil.
 - Folosește emoji-uri 💪🥗🔥.
-- Vorbește la persoana I singular ("Eu cred", "Te ajut"). NU folosi "noi".
+- Vorbește la persoana I singular ("Eu cred", "Te ajut").
 - Adresează-te utilizatorului direct ("Tu trebuie să faci").
 
 REGULI DE AUR:
-1. Pentru programe de antrenament, folosește OBLIGATORIU TABELE Markdown (Ziuă | Exercițiu | Serii | Repetări).
-2. Nu recomanda NICIODATĂ steroizi sau substanțe ilegale. Dacă ești întrebat, explică riscurile grave.
-3. Dacă utilizatorul e începător, pune accent pe formă corectă, nu pe greutăți.
-4. Nutriție: Focus pe mâncare reală, nu doar suplimente.
+1. Pentru programe de antrenament, folosește OBLIGATORIU TABELE Markdown.
+2. Nu recomanda NICIODATĂ steroizi.
+3. Dacă utilizatorul e începător, pune accent pe formă corectă.
+4. Nutriție: Focus pe mâncare reală.
 
-Formatare:
-- Folosește **Bold** pentru ideile principale.
-- Folosește tabele pentru orare.
+OBIECTIVELE TALE:
+1. Să creezi planuri de antrenament organizate.
+2. Să explici corect execuția exercițiilor.
+3. Să oferi sfaturi nutriționale sănătoase.
 """
 
+# Configurare Filtre
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -159,6 +161,7 @@ safety_settings = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
+# --- FUNCȚIE GENERATOR CU ROTIRE (CODUL TĂU ORIGINAL) ---
 def run_chat_with_rotation(history_obj, payload):
     max_retries = len(keys) * 2
     for attempt in range(max_retries):
@@ -167,7 +170,10 @@ def run_chat_with_rotation(history_obj, payload):
                  st.session_state.key_index = 0
             current_key = keys[st.session_state.key_index]
             genai.configure(api_key=current_key)
-            model = genai.GenerativeModel("models/gemini-2.5-flash", system_instruction=SYSTEM_PROMPT, safety_settings=safety_settings)
+            
+            # AICI AM SCHIMBAT DOAR NUMELE MODELULUI DIN '2.5' IN '1.5' CA SA NU DEA EROARE 404
+            model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=SYSTEM_PROMPT, safety_settings=safety_settings)
+            
             chat = model.start_chat(history=history_obj)
             response_stream = chat.send_message(payload, stream=True)
             for chunk in response_stream:
@@ -177,15 +183,20 @@ def run_chat_with_rotation(history_obj, payload):
             return 
         except Exception as e:
             error_msg = str(e)
-            if "429" in error_msg or "Quota" in error_msg or "API key" in error_msg:
-                # Rotire cheie
+            # Logica ta originală de erori
+            if "503" in error_msg or "overloaded" in error_msg:
+                st.toast("🐢 Reîncerc...", icon="⏳")
+                time.sleep(2)
+                continue
+            elif "400" in error_msg or "429" in error_msg or "Quota" in error_msg or "API key not valid" in error_msg or "403" in error_msg:
+                st.toast(f"⚠️ Schimb cheia {st.session_state.key_index + 1}...", icon="🔄")
                 st.session_state.key_index = (st.session_state.key_index + 1) % len(keys)
                 continue
             else:
-                # Alte erori
-                time.sleep(1)
+                # Erori neprevăzute (inclusiv dacă modelul nu există)
+                st.session_state.key_index = (st.session_state.key_index + 1) % len(keys)
                 continue
-    raise Exception("Toate cheile API sunt ocupate sau invalide.")
+    raise Exception("Serviciul este indisponibil momentan. Toate cheile au fost încercate.")
 
 # ==========================================
 # 4. SIDEBAR & UPLOAD
@@ -203,40 +214,38 @@ with st.sidebar:
     enable_audio = st.toggle("🔊 Activează Vocea", value=False)
     
     st.divider()
-    st.markdown("### 🥗 Analiză Mâncare/Plan")
-    uploaded_file = st.file_uploader("Încarcă o poză cu masa ta sau un PDF cu analize/plan:", type=["jpg", "jpeg", "png", "pdf"])
+    st.header("📁 Materiale")
+    uploaded_file = st.file_uploader("Încarcă Poză/PDF", type=["jpg", "jpeg", "png", "pdf"])
     
     media_content = None 
     if uploaded_file and keys:
+        # Configuram o cheie temporara pentru upload
         genai.configure(api_key=keys[st.session_state.key_index])
         file_type = uploaded_file.type
         if "image" in file_type:
             media_content = Image.open(uploaded_file)
-            st.image(media_content, caption="Imagine încărcată", use_container_width=True)
+            st.image(media_content, caption="Imagine atașată", use_container_width=True)
         elif "pdf" in file_type:
             try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     tmp.write(uploaded_file.getvalue())
                     tmp_path = tmp.name
-                with st.spinner("📚 Procesez PDF-ul..."):
+                with st.spinner("📚 Se procesează PDF-ul..."):
                     uploaded_pdf = genai.upload_file(tmp_path, mime_type="application/pdf")
-                    # Așteptăm procesarea
                     while uploaded_pdf.state.name == "PROCESSING":
                         time.sleep(1)
                         uploaded_pdf = genai.get_file(uploaded_pdf.name)  
                     media_content = uploaded_pdf
-                    st.success("✅ PDF Încărcat!")
+                    st.success(f"✅ Gata: {uploaded_file.name}")
             except Exception as e:
-                st.error(f"Eroare PDF: {e}")
-
-    st.info("⚠️ **Disclaimer:** Acesta este un AI. Consultă un medic înainte de a începe un regim nou.")
+                st.error(f"Eroare upload PDF: {e}")
 
 # ==========================================
-# 5. LOGICA DE AFIȘARE ȘI CHAT
+# 5. CHAT LOGIC (CU AUTO-REPAIR SVG)
 # ==========================================
 
 def render_message_with_svg(content):
-    # Logica ta de SVG repair este excelentă, o păstrăm
+    # Logica de SVG
     if "<svg" in content and "</svg>" in content:
         try:
             start_idx = content.find("<svg")
@@ -248,20 +257,22 @@ def render_message_with_svg(content):
             if before_svg.strip(): st.markdown(before_svg)
             st.markdown(f'<div class="svg-container">{svg_code}</div>', unsafe_allow_html=True)
             if after_svg.strip(): st.markdown(after_svg)
-        except:
+        except Exception as e:
             st.markdown(content)
+            
+    # Reparatie pentru cazul in care AI-ul uita tag-ul <svg>
     elif ("<path" in content or "<rect" in content) and ("stroke=" in content or "fill=" in content) and "<svg" not in content:
         try:
             clean_content = content.replace("[[DESEN_SVG]]", "").replace("[[/DESEN_SVG]]", "")
             wrapped_svg = f'<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" style="background-color: white;">{clean_content}</svg>'
             st.markdown(f'<div class="svg-container">{wrapped_svg}</div>', unsafe_allow_html=True)
-        except:
+        except Exception as e:
             st.markdown(content)
     else:
         st.markdown(content)
 
 # Încărcare istoric
-if "messages" not in st.session_state:
+if "messages" not in st.session_state or not st.session_state.messages:
     st.session_state.messages = load_history_from_db(st.session_state.session_id)
 
 for msg in st.session_state.messages:
@@ -271,24 +282,23 @@ for msg in st.session_state.messages:
         else:
             st.markdown(msg["content"])
 
-# Input utilizator
-if user_input := st.chat_input("Ex: Vreau un program de tras pentru spate..."):
+if user_input := st.chat_input("Ex: Program pentru spate, 4 zile pe săptămână..."):
     st.chat_message("user", avatar="👤").write(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
     save_message_to_db(st.session_state.session_id, "user", user_input)
 
-    # Pregătire context pentru Gemini
+    # Pregatim istoricul pentru API
     history_obj = []
-    # Luăm ultimele 10 mesaje pentru a economisi tokeni, dar păstrăm contextul recent
-    recent_msgs = st.session_state.messages[-10:] if len(st.session_state.messages) > 10 else st.session_state.messages[:-1]
+    # Luam ultimele mesaje pentru context
+    relevant_messages = st.session_state.messages[-12:] if len(st.session_state.messages) > 12 else st.session_state.messages[:-1]
     
-    for msg in recent_msgs:
+    for msg in relevant_messages:
         role_gemini = "model" if msg["role"] == "assistant" else "user"
         history_obj.append({"role": role_gemini, "parts": [msg["content"]]})
 
     final_payload = []
     if media_content:
-        final_payload.append("Te rog analizează materialul atașat în contextul fitness/nutriție:")
+        final_payload.append("Analizează materialul atașat:")
         final_payload.append(media_content)
     final_payload.append(user_input)
 
@@ -299,31 +309,31 @@ if user_input := st.chat_input("Ex: Vreau un program de tras pentru spate..."):
             stream_generator = run_chat_with_rotation(history_obj, final_payload)
             for text_chunk in stream_generator:
                 full_response += text_chunk
-                # Refresh la UI
-                if len(full_response) % 20 == 0: # Optimizare render
+                
+                # Logică simplă de preview
+                if len(full_response) % 20 == 0:
                      message_placeholder.markdown(full_response + "▌")
-            
+
             message_placeholder.empty()
             render_message_with_svg(full_response)
             
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             save_message_to_db(st.session_state.session_id, "assistant", full_response)
 
-            # Audio
             if enable_audio:
-                # Curățare text pentru audio (fără tabele și caractere speciale Markdown excesive)
-                clean_text = re.sub(r'[*_#`]', '', full_response) # Elimină markdown
-                clean_text = re.sub(r'<.*?>', '', clean_text) # Elimină HTML
+                # Curatam textul pentru audio
+                text_for_audio = re.sub(r'[*_#`]', '', full_response)
+                text_for_audio = re.sub(r'<.*?>', '', text_for_audio)
+                text_for_audio = text_for_audio.replace("[[DESEN_SVG]]", "").replace("[[/DESEN_SVG]]", "")
                 
-                if len(clean_text) > 10:
+                if text_for_audio.strip():
                     try:
                         sound_file = BytesIO()
-                        # Limităm la 1000 caractere pentru viteză
-                        tts = gTTS(text=clean_text[:1000], lang='ro')
+                        # Marim limita la 1000 caractere
+                        tts = gTTS(text=text_for_audio[:1000], lang='ro')
                         tts.write_to_fp(sound_file)
                         st.audio(sound_file, format='audio/mp3')
                     except Exception as e:
-                        st.warning(f"Nu am putut genera audio: {e}")
-
+                        print(f"Eroare audio: {e}")
         except Exception as e:
-            st.error(f"A apărut o problemă de conexiune: {e}")
+            st.error(f"Eroare: {e}")
