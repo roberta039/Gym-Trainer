@@ -302,7 +302,7 @@ if user_input := st.chat_input("Salut! Vreau un program pentru spate și biceps.
                 
                 # Logică de preview
                 if "<svg" in full_response or ("<path" in full_response and "stroke=" in full_response):
-                     message_placeholder.markdown(full_response.split("<path")[0] + "\n\n*🎨 Domnul Profesor desenează...*\n\n▌")
+                     message_placeholder.markdown(full_response.split("<path")[0] + "\n\n*🎨 GymBro desenează...*\n\n▌")
                 else:
                      message_placeholder.markdown(full_response + "▌")
 
