@@ -13,7 +13,7 @@ import re
 # ==========================================
 # 1. CONFIGURARE PAGINĂ & CSS
 # ==========================================
-st.set_page_config(page_title="Profesor Liceu", page_icon="🎓", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="AI Gym Trainer", page_icon="💪", layout="centered")
 
 st.markdown("""
 <style>
@@ -191,7 +191,7 @@ def run_chat_with_rotation(history_obj, payload):
 # ==========================================
 # 4. SIDEBAR & UPLOAD
 # ==========================================
-st.title("🎓 Profesor Liceu")
+st.title("💪 GymBro AI - Antrenorul Tău")
 
 with st.sidebar:
     st.header("⚙️ Opțiuni")
@@ -276,7 +276,7 @@ for msg in st.session_state.messages:
         else:
             st.markdown(msg["content"])
 
-if user_input := st.chat_input("Întreabă profesorul..."):
+if user_input := st.chat_input("Salut! Vreau un program pentru spate și biceps..."):
     st.chat_message("user").write(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
     save_message_to_db(st.session_state.session_id, "user", user_input)
