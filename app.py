@@ -167,7 +167,7 @@ def run_chat_with_rotation(history_obj, payload):
                  st.session_state.key_index = 0
             current_key = keys[st.session_state.key_index]
             genai.configure(api_key=current_key)
-            model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=SYSTEM_PROMPT, safety_settings=safety_settings)
+            model = genai.GenerativeModel("models/gemini-2.5-flash", system_instruction=SYSTEM_PROMPT, safety_settings=safety_settings)
             chat = model.start_chat(history=history_obj)
             response_stream = chat.send_message(payload, stream=True)
             for chunk in response_stream:
